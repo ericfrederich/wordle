@@ -2,7 +2,7 @@ import copy
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
-from string import ascii_lowercase, ascii_uppercase
+from string import ascii_lowercase
 from typing import Dict, List, Optional, Set, Union
 
 from wordle.wordle_words import SECRET_WORDS
@@ -43,19 +43,24 @@ class Result:
         for c in result_str:
             if c in ascii_lowercase:
                 pieces.append(ResultPiece(c, TileFeedback.wrong))
-            elif c in ascii_uppercase:
-                pieces.append(ResultPiece(c.lower(), TileFeedback.correct))
-            elif c == "?":
+            elif c in "?+":
                 if previous not in ascii_lowercase or pieces[-1].feedback != TileFeedback.wrong:
                     raise ValueError(f"Unexpected `?` found in {result_str}")
-                pieces[-1].feedback = TileFeedback.wrong_place
+                if c == "?":
+                    pieces[-1].feedback = TileFeedback.wrong_place
+                elif c == "+":
+                    pieces[-1].feedback = TileFeedback.correct
+                else:
+                    raise ValueError("Should never get here")
+            else:
+                raise ValueError(f"Unexpected {c!r} in {result_str!r}")
             previous = c
         return cls(pieces)
 
     def __str__(self) -> str:
         return "".join(
             {
-                TileFeedback.correct: piece.character.upper(),
+                TileFeedback.correct: piece.character + "+",
                 TileFeedback.wrong: piece.character,
                 TileFeedback.wrong_place: piece.character + "?",
             }[piece.feedback]

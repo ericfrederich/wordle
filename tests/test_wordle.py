@@ -1,7 +1,7 @@
 from datetime import date
 
 from wordle import __version__
-from wordle.game import Knowledge, get_result
+from wordle.game import Knowledge, Result, get_result
 from wordle.wordle_words import SECRET_WORDS, date_to_word, word_to_date
 
 
@@ -11,10 +11,18 @@ def test_version():
 
 def test_get_result():
     assert str(get_result(answer="point", guess="title")) == "t?i?tle"
-    assert str(get_result(answer="point", guess="trout")) == "tro?uT"
+    assert str(get_result(answer="point", guess="trout")) == "tro?ut+"
     assert str(get_result(answer="abbey", guess="blobs")) == "b?lob?s"
     assert str(get_result(answer="abbey", guess="blurb")) == "b?lurb?"
-    assert str(get_result(answer="abbey", guess="bobby")) == "b?oBbY"
+    assert str(get_result(answer="abbey", guess="bobby")) == "b?ob+by+"
+
+
+def test_from_str():
+    assert get_result(answer="point", guess="title") == Result.from_str("t?i?tle")
+    assert get_result(answer="point", guess="trout") == Result.from_str("tro?ut+")
+    assert get_result(answer="abbey", guess="blobs") == Result.from_str("b?lob?s")
+    assert get_result(answer="abbey", guess="blurb") == Result.from_str("b?lurb?")
+    assert get_result(answer="abbey", guess="bobby") == Result.from_str("b?ob+by+")
 
 
 def test_knowledge():
