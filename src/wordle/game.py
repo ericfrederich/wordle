@@ -122,8 +122,13 @@ class KnowledgeBase:
     # minimum and maximum number of occurrences for each char (max of 0 means it's not in the solution)
     char_mins: Dict[str, int] = field(default_factory=dict)
     char_maxes: Dict[str, int] = field(default_factory=dict)
-    wrong_positions: List[Set[str]] = field(default_factory=lambda: [set() for _ in range(WORD_LENGTH)])
-    answer: List = field(default_factory=lambda: [None] * WORD_LENGTH)
+    wrong_positions: List[Set[str]] = field(default_factory=list)  # actually initialized in __post_init__
+    answer: List = field(default_factory=list)  # actually initialized in __post_init__
+
+    def __post_init__(self):
+        for _ in range(self.WORD_LENGTH):
+            self.wrong_positions.append(set())
+            self.answer.append(None)
 
     def copy(self):
         return copy.deepcopy(self)
