@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
 from string import ascii_lowercase
-from typing import Dict, List, Optional, Set, Union
+from typing import ClassVar, Dict, List, Optional, Set, Union
 
 from wordle.wordle_words import SECRET_WORDS
 
@@ -23,11 +23,12 @@ class ResultPiece:
 
 
 @dataclass
-class Result:
+class ResultBase:
     """
     The result of a single guess at the game.
     """
 
+    allowed_characters: ClassVar[str]
     pieces: List[ResultPiece]
 
     @classmethod
@@ -41,10 +42,10 @@ class Result:
         pieces: List[ResultPiece] = []
         previous = None
         for c in result_str:
-            if c in ascii_lowercase:
+            if c in cls.allowed_characters:
                 pieces.append(ResultPiece(c, TileFeedback.wrong))
             elif c in "?+":
-                if previous not in ascii_lowercase or pieces[-1].feedback != TileFeedback.wrong:
+                if previous not in cls.allowed_characters or pieces[-1].feedback != TileFeedback.wrong:
                     raise ValueError(f"Unexpected {c!r} found in {result_str}")
                 if c == "?":
                     pieces[-1].feedback = TileFeedback.wrong_place
@@ -103,6 +104,11 @@ class Result:
     @cached_property
     def wrong_positions(self):
         return {i: r.character for i, r in enumerate(self) if r.feedback == TileFeedback.wrong_place}
+
+
+@dataclass
+class Result(ResultBase):
+    allowed_characters: ClassVar[str] = ascii_lowercase
 
 
 @dataclass
