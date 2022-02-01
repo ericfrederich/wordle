@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 import click
 
-from wordle.game import Knowledge, LetterFeedback, Result, get_result
+from wordle.game import Knowledge, Result, TileFeedback, get_result
 from wordle.wordle_words import (
     ALLOWED_GUESSES,
     SECRET_WORDS,
@@ -60,9 +60,9 @@ def render_result(result: Result):
         click.style(
             piece.letter.upper(),
             **{
-                LetterFeedback.wrong: WRONG_S,
-                LetterFeedback.wrong_place: WRONG_PLACE_S,
-                LetterFeedback.correct: CORRECT_S,
+                TileFeedback.wrong: WRONG_S,
+                TileFeedback.wrong_place: WRONG_PLACE_S,
+                TileFeedback.correct: CORRECT_S,
             }[piece.feedback],
         )
         for piece in result

@@ -10,7 +10,7 @@ from wordle.wordle_words import SECRET_WORDS
 WORD_LENGTH = 5
 
 
-class LetterFeedback(Enum):
+class TileFeedback(Enum):
     correct = auto()
     wrong = auto()
     wrong_place = auto()
@@ -19,7 +19,7 @@ class LetterFeedback(Enum):
 @dataclass
 class ResultPiece:
     letter: str
-    feedback: Optional[LetterFeedback]
+    feedback: Optional[TileFeedback]
 
 
 @dataclass
@@ -42,22 +42,22 @@ class Result:
         previous = None
         for c in result_str:
             if c in ascii_lowercase:
-                pieces.append(ResultPiece(c, LetterFeedback.wrong))
+                pieces.append(ResultPiece(c, TileFeedback.wrong))
             elif c in ascii_uppercase:
-                pieces.append(ResultPiece(c.lower(), LetterFeedback.correct))
+                pieces.append(ResultPiece(c.lower(), TileFeedback.correct))
             elif c == "?":
-                if previous not in ascii_lowercase or pieces[-1].feedback != LetterFeedback.wrong:
+                if previous not in ascii_lowercase or pieces[-1].feedback != TileFeedback.wrong:
                     raise ValueError(f"Unexpected `?` found in {result_str}")
-                pieces[-1].feedback = LetterFeedback.wrong_place
+                pieces[-1].feedback = TileFeedback.wrong_place
             previous = c
         return cls(pieces)
 
     def __str__(self) -> str:
         return "".join(
             {
-                LetterFeedback.correct: piece.letter.upper(),
-                LetterFeedback.wrong: piece.letter,
-                LetterFeedback.wrong_place: piece.letter + "?",
+                TileFeedback.correct: piece.letter.upper(),
+                TileFeedback.wrong: piece.letter,
+                TileFeedback.wrong_place: piece.letter + "?",
             }[piece.feedback]
             for piece in self
         )
@@ -69,7 +69,7 @@ class Result:
     def correct_letters(self):
         ret = []
         for i, piece in enumerate(self):
-            if piece.feedback == LetterFeedback.correct:
+            if piece.feedback == TileFeedback.correct:
                 ret.append((i, piece.letter))
         return ret
 
@@ -79,7 +79,7 @@ class Result:
         # just once for each letter
         for letter in set(piece.letter for piece in self):
             # find all occurrences of this letter that are not wrong
-            min_required = sum(1 for piece in self if piece.letter == letter and piece.feedback != LetterFeedback.wrong)
+            min_required = sum(1 for piece in self if piece.letter == letter and piece.feedback != TileFeedback.wrong)
             if min_required:
                 ret[letter] = min_required
         return ret
@@ -88,14 +88,14 @@ class Result:
     def letter_maxes(self):
         ret = {}
         # just once for each wrong letter
-        for letter in set(piece.letter for piece in self if piece.feedback == LetterFeedback.wrong):
+        for letter in set(piece.letter for piece in self if piece.feedback == TileFeedback.wrong):
             # The maximum is equal to the minimum
             ret[letter] = self.letter_mins.get(letter, 0)
         return ret
 
     @cached_property
     def wrong_positions(self):
-        return {i: r.letter for i, r in enumerate(self) if r.feedback == LetterFeedback.wrong_place}
+        return {i: r.letter for i, r in enumerate(self) if r.feedback == TileFeedback.wrong_place}
 
 
 @dataclass
@@ -201,10 +201,10 @@ def get_result(*, answer: str, guess: str) -> Result:
     for a, g in zip(answer, guess):
         if g == a:
             # if it's correct, it's always correct, don't need to look any deeper
-            pieces.append(ResultPiece(letter=g, feedback=LetterFeedback.correct))
+            pieces.append(ResultPiece(letter=g, feedback=TileFeedback.correct))
         elif g not in answer:
             # if it's not in the word, it's always wrong, don't need to look any deeper
-            pieces.append(ResultPiece(letter=g, feedback=LetterFeedback.wrong))
+            pieces.append(ResultPiece(letter=g, feedback=TileFeedback.wrong))
         else:
             pieces.append(ResultPiece(letter=g, feedback=None))
 
@@ -218,12 +218,12 @@ def get_result(*, answer: str, guess: str) -> Result:
         already_marked = sum(
             1
             for p in pieces
-            if p.letter == piece.letter and p.feedback in (LetterFeedback.correct, LetterFeedback.wrong_place)
+            if p.letter == piece.letter and p.feedback in (TileFeedback.correct, TileFeedback.wrong_place)
         )
         if in_answer > already_marked:
-            piece.feedback = LetterFeedback.wrong_place
+            piece.feedback = TileFeedback.wrong_place
         else:
-            piece.feedback = LetterFeedback.wrong
+            piece.feedback = TileFeedback.wrong
 
     return Result(pieces)
 
