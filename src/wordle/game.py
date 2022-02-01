@@ -2,7 +2,7 @@ import copy
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
-from string import ascii_lowercase
+from string import ascii_lowercase, digits
 from typing import ClassVar, Dict, List, Optional, Set, Union
 
 from wordle.wordle_words import SECRET_WORDS
@@ -109,6 +109,11 @@ class ResultBase:
 @dataclass
 class Result(ResultBase):
     allowed_characters: ClassVar[str] = ascii_lowercase
+
+
+@dataclass
+class NerdleResult(ResultBase):
+    allowed_characters: ClassVar[str] = digits + "+-*/="
 
 
 @dataclass
