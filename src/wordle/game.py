@@ -35,9 +35,9 @@ class ResultBase:
     def from_str(cls, result_str: str):
         """
         Load a result from a string representation.
-        * Upper case: correct letter in correct position
-        * Lower case: wrong letter (not in word)
-        * Lower case followed by ?: letter is in word but at another position
+        * Character followed by +       - correct char in correct position
+        * Character followed by ?       - char is in solution but at another position
+        * Character followed by nothing - wrong char (not in solution)
         """
         pieces: List[ResultPiece] = []
         previous = None
@@ -82,23 +82,21 @@ class ResultBase:
     @cached_property
     def char_mins(self) -> Dict[str, int]:
         ret = {}
-        # just once for each letter
-        for letter in set(piece.character for piece in self):
-            # find all occurrences of this letter that are not wrong
-            min_required = sum(
-                1 for piece in self if piece.character == letter and piece.feedback != TileFeedback.wrong
-            )
+        # just once for each char
+        for char in set(piece.character for piece in self):
+            # find all occurrences of this char that are not wrong
+            min_required = sum(1 for piece in self if piece.character == char and piece.feedback != TileFeedback.wrong)
             if min_required:
-                ret[letter] = min_required
+                ret[char] = min_required
         return ret
 
     @cached_property
     def char_maxes(self):
         ret = {}
-        # just once for each wrong letter
-        for letter in set(piece.character for piece in self if piece.feedback == TileFeedback.wrong):
+        # just once for each wrong char
+        for char in set(piece.character for piece in self if piece.feedback == TileFeedback.wrong):
             # The maximum is equal to the minimum
-            ret[letter] = self.char_mins.get(letter, 0)
+            ret[char] = self.char_mins.get(char, 0)
         return ret
 
     @cached_property
@@ -128,9 +126,9 @@ class Knowledge:
     #  for instance, if word is abbey and you guess blobs
     #  you'll get back b?lob?s ...  need 2 "b"s
     #  do not remove from list once their location is found
-    letter_min: Dict[str, int] = field(default_factory=dict)
-    # Maximum occurrences of each letter (also handles wrong letters, max 0)
-    letter_max: Dict[str, int] = field(default_factory=dict)
+    char_mins: Dict[str, int] = field(default_factory=dict)
+    # Maximum occurrences of each char (also handles wrong chars, max 0)
+    char_maxes: Dict[str, int] = field(default_factory=dict)
     wrong_positions: List[Set[str]] = field(default_factory=lambda: [set() for _ in range(WORD_LENGTH)])
     answer: List = field(default_factory=lambda: [None] * WORD_LENGTH)
 
@@ -148,10 +146,10 @@ class Knowledge:
 
     def is_valid_solution(self, word: str) -> bool:
         # if it's not using all the correct letter counts it's wrong
-        for l, c in self.letter_min.items():
+        for l, c in self.char_mins.items():
             if word.count(l) < c:
                 return False
-        for l, c in self.letter_max.items():
+        for l, c in self.char_maxes.items():
             if word.count(l) > c:
                 return False
         # if the known positions are not correct it's false
@@ -178,19 +176,19 @@ class Knowledge:
         # merge the min letter counts
         for l, c in result.char_mins.items():
             # if we've established a max for this letter, make sure it's less than it
-            if l in self.letter_max:
-                assert c <= self.letter_max[l]
-            if c > self.letter_min.get(l, 0):
-                self.letter_min[l] = c
+            if l in self.char_maxes:
+                assert c <= self.char_maxes[l]
+            if c > self.char_mins.get(l, 0):
+                self.char_mins[l] = c
         # merge the max letter counts
         for l, c in result.char_maxes.items():
-            if l in self.letter_min:
-                assert c >= self.letter_min[l]
+            if l in self.char_mins:
+                assert c >= self.char_mins[l]
             # once we know the max it should never change
-            if l in self.letter_max:
-                assert c == self.letter_max[l]
+            if l in self.char_maxes:
+                assert c == self.char_maxes[l]
             else:
-                self.letter_max[l] = c
+                self.char_maxes[l] = c
         # merge the wrong positions
         for i, l in result.wrong_positions.items():
             self.wrong_positions[i].add(l)

@@ -28,17 +28,17 @@ def test_from_str():
 def test_knowledge():
     k = Knowledge()
     k.add_result(get_result(answer="abbey", guess="blobs"))
-    assert k.letter_min == {"b": 2}
+    assert k.char_mins == {"b": 2}
     assert k.answer == [None, None, None, None, None]
-    assert k.letter_max == {"l": 0, "o": 0, "s": 0}
+    assert k.char_maxes == {"l": 0, "o": 0, "s": 0}
     k.add_result(get_result(answer="abbey", guess="blurb"))
-    assert k.letter_min == {"b": 2}
+    assert k.char_mins == {"b": 2}
     assert k.answer == [None, None, None, None, None]
-    assert k.letter_max == {"l": 0, "o": 0, "s": 0, "u": 0, "r": 0}
+    assert k.char_maxes == {"l": 0, "o": 0, "s": 0, "u": 0, "r": 0}
     k.add_result(get_result(answer="abbey", guess="bobby"))
-    assert k.letter_min == {"b": 2, "y": 1}
+    assert k.char_mins == {"b": 2, "y": 1}
     assert k.answer == [None, None, "b", None, "y"]
-    assert k.letter_max == {"l": 0, "o": 0, "s": 0, "u": 0, "r": 0, "b": 2}
+    assert k.char_maxes == {"l": 0, "o": 0, "s": 0, "u": 0, "r": 0, "b": 2}
 
 
 def test_dates():

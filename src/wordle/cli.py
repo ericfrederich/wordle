@@ -79,9 +79,9 @@ def render_keyboard(k: Knowledge):
             if c in ascii_lowercase:
                 if c in k.answer:
                     c = click.style(c, **CORRECT_S)
-                elif c in k.letter_min:
+                elif c in k.char_mins:
                     c = click.style(c, **WRONG_PLACE_S)
-                elif c in (l for l, n in k.letter_max.items() if n == 0):
+                elif c in (l for l, n in k.char_maxes.items() if n == 0):
                     c = click.style(c, **WRONG_S)
                 click.echo(c, nl=False)
             elif c == " ":
