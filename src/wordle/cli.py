@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 import click
 
-from wordle.game import Knowledge, Result, TileFeedback, get_result
+from wordle.game import Knowledge, TileFeedback, WordleResult, get_result
 from wordle.wordle_words import (
     ALLOWED_GUESSES,
     SECRET_WORDS,
@@ -28,13 +28,13 @@ class ResultType(click.ParamType):
     name = "result"
 
     def convert(self, value, param, ctx):
-        if isinstance(value, Result):
+        if isinstance(value, WordleResult):
             # WHEN DOES THIS EVER HAPPEN?
             click.secho("WHEN DOES THIS EVER HAPPEN?", fg="red", bold=True)
             return value
 
         elif isinstance(value, str):
-            return Result.from_str(value)
+            return WordleResult.from_str(value)
         else:
             click.secho("?" * 80, fg="red", bold=True)
 
@@ -55,7 +55,7 @@ WRONG_S = {"bg": "bright_black", "fg": "bright_white", **COMMON_S}
 WRONG_PLACE_S = {"bg": "bright_yellow", "fg": "black", **COMMON_S}
 
 
-def render_result(result: Result):
+def render_result(result: WordleResult):
     return "".join(
         click.style(
             piece.character.upper(),
@@ -93,7 +93,7 @@ def render_keyboard(k: Knowledge):
 @click.option("--quiet", "-q", is_flag=True)
 @click.argument("results", metavar="result str ...", nargs=-1, type=ResultType())
 @click.pass_context
-def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[Result]):
+def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleResult]):
     """
     Show valid solutions given the supplied previous results/feedback
     """
@@ -124,7 +124,7 @@ def best_guess_cmd(
     n_threads: int,
     out_file: io.BytesIO,
     quiet: bool,
-    results: List[Result],
+    results: List[WordleResult],
     internal_call: bool = False,
     pretend_answers: List[str] = None,
 ):

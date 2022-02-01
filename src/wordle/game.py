@@ -72,7 +72,7 @@ class ResultBase:
         return iter(self.pieces)
 
     @cached_property
-    def correct_letters(self):
+    def correct_chars(self):
         ret = []
         for i, piece in enumerate(self):
             if piece.feedback == TileFeedback.correct:
@@ -80,7 +80,7 @@ class ResultBase:
         return ret
 
     @cached_property
-    def letter_mins(self) -> Dict[str, int]:
+    def char_mins(self) -> Dict[str, int]:
         ret = {}
         # just once for each letter
         for letter in set(piece.character for piece in self):
@@ -93,12 +93,12 @@ class ResultBase:
         return ret
 
     @cached_property
-    def letter_maxes(self):
+    def char_maxes(self):
         ret = {}
         # just once for each wrong letter
         for letter in set(piece.character for piece in self if piece.feedback == TileFeedback.wrong):
             # The maximum is equal to the minimum
-            ret[letter] = self.letter_mins.get(letter, 0)
+            ret[letter] = self.char_mins.get(letter, 0)
         return ret
 
     @cached_property
@@ -107,7 +107,7 @@ class ResultBase:
 
 
 @dataclass
-class Result(ResultBase):
+class WordleResult(ResultBase):
     allowed_characters: ClassVar[str] = ascii_lowercase
 
 
@@ -138,11 +138,11 @@ class Knowledge:
         return copy.deepcopy(self)
 
     @classmethod
-    def from_results(cls, *results: Union[Result, str]):
+    def from_results(cls, *results: Union[WordleResult, str]):
         ret = cls()
         for r in results:
             if isinstance(r, str):
-                r = Result.from_str(r)
+                r = WordleResult.from_str(r)
             ret.add_result(r)
         return ret
 
@@ -169,21 +169,21 @@ class Knowledge:
         # that wordle allows as a guess
         return [w for w in word_list if self.is_valid_solution(w)]
 
-    def add_result(self, result: Result):
+    def add_result(self, result: WordleResult):
         # merge the correct letters
-        for i, l in result.correct_letters:
+        for i, l in result.correct_chars:
             if self.answer[i]:
                 assert self.answer[i] == l
             self.answer[i] = l
         # merge the min letter counts
-        for l, c in result.letter_mins.items():
+        for l, c in result.char_mins.items():
             # if we've established a max for this letter, make sure it's less than it
             if l in self.letter_max:
                 assert c <= self.letter_max[l]
             if c > self.letter_min.get(l, 0):
                 self.letter_min[l] = c
         # merge the max letter counts
-        for l, c in result.letter_maxes.items():
+        for l, c in result.char_maxes.items():
             if l in self.letter_min:
                 assert c >= self.letter_min[l]
             # once we know the max it should never change
@@ -208,7 +208,7 @@ class Knowledge:
         return len(pretend_answers) - avg
 
 
-def get_result(*, answer: str, guess: str) -> Result:
+def get_result(*, answer: str, guess: str) -> WordleResult:
     """
     Given the answer the the guess string return a result
     """
@@ -243,7 +243,7 @@ def get_result(*, answer: str, guess: str) -> Result:
         else:
             piece.feedback = TileFeedback.wrong
 
-    return Result(pieces)
+    return WordleResult(pieces)
 
 
 class Game:
