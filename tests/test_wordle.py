@@ -1,7 +1,7 @@
 from datetime import date
 
 from wordle import __version__
-from wordle.game import Knowledge, WordleResult, get_result
+from wordle.game import WordleKnowledge, WordleResult, get_result
 from wordle.wordle_words import SECRET_WORDS, date_to_word, word_to_date
 
 
@@ -26,7 +26,7 @@ def test_from_str():
 
 
 def test_knowledge():
-    k = Knowledge()
+    k = WordleKnowledge()
     k.add_result(get_result(answer="abbey", guess="blobs"))
     assert k.char_mins == {"b": 2}
     assert k.answer == [None, None, None, None, None]
@@ -52,11 +52,11 @@ def test_some_bug_i_found():
     """
     This test will fail unless game is also keeping track of maximum letter counts as well
     """
-    k = Knowledge()
+    k = WordleKnowledge()
     k.add_result(get_result(answer="odder", guess="order"))
     assert "order" not in k.valid_solutions()
     assert "odder" in k.valid_solutions()
-    k = Knowledge()
+    k = WordleKnowledge()
     k.add_result(get_result(answer="order", guess="odder"))
     assert "odder" not in k.valid_solutions()
     assert "order" in k.valid_solutions()

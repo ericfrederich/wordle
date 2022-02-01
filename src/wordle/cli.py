@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 import click
 
-from wordle.game import Knowledge, TileFeedback, WordleResult, get_result
+from wordle.game import TileFeedback, WordleKnowledge, WordleResult, get_result
 from wordle.wordle_words import (
     ALLOWED_GUESSES,
     SECRET_WORDS,
@@ -69,7 +69,7 @@ def render_result(result: WordleResult):
     )
 
 
-def render_keyboard(k: Knowledge):
+def render_keyboard(k: WordleKnowledge):
     for row in (
         "q w e r t y u i o p",
         " a s d f g h j k l",
@@ -102,7 +102,7 @@ def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleRes
         for r in results:
             click.echo("  " + render_result(r) + ",")
         click.secho(")", fg="white", bold=True)
-    k = Knowledge.from_results(*results)
+    k = WordleKnowledge.from_results(*results)
     for p in sorted(k.valid_solutions(word_list=SECRET_WORDS)):
         click.echo(p)
 
@@ -137,7 +137,7 @@ def best_guess_cmd(
         for r in results:
             click.echo("  " + render_result(r) + ",")
         click.secho(")", fg="white", bold=True)
-    knowledge = Knowledge.from_results(*results)
+    knowledge = WordleKnowledge.from_results(*results)
     data = []
     valid_before = knowledge.valid_solutions()
     if hard_mode:
@@ -267,7 +267,7 @@ def bot_cmd(
     answer: str,
     initial_guesses: List[str],
 ):
-    knowledge = Knowledge()
+    knowledge = WordleKnowledge()
     results = []
     for guess in initial_guesses:
         result = get_result(answer=answer, guess=guess)
@@ -320,7 +320,7 @@ def play(ctx: click.Context, dt: datetime, hard_mode: bool, n_threads: int = os.
     d = dt.date()
     click.secho(f"Playing {d}", fg="green", bold=True)
     answer = date_to_word(d)
-    knowledge = Knowledge()
+    knowledge = WordleKnowledge()
     results = []
     while True:
         for r in results:

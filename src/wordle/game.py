@@ -7,8 +7,6 @@ from typing import ClassVar, Dict, List, Optional, Set, Union
 
 from wordle.wordle_words import SECRET_WORDS
 
-WORD_LENGTH = 5
-
 
 class TileFeedback(Enum):
     correct = auto()
@@ -115,19 +113,14 @@ class NerdleResult(ResultBase):
 
 
 @dataclass
-class Knowledge:
+class KnowledgeBase:
     """
     Everything known so far within a game
     """
 
-    # required letters
-    #  letters that must be used (perhaps we even know where if they've ever been green)
-    #  need to keep a count, not just a set of letters.
-    #  for instance, if word is abbey and you guess blobs
-    #  you'll get back b?lob?s ...  need 2 "b"s
-    #  do not remove from list once their location is found
+    WORD_LENGTH: ClassVar[int]
+    # minimum and maximum number of occurrences for each char (max of 0 means it's not in the solution)
     char_mins: Dict[str, int] = field(default_factory=dict)
-    # Maximum occurrences of each char (also handles wrong chars, max 0)
     char_maxes: Dict[str, int] = field(default_factory=dict)
     wrong_positions: List[Set[str]] = field(default_factory=lambda: [set() for _ in range(WORD_LENGTH)])
     answer: List = field(default_factory=lambda: [None] * WORD_LENGTH)
@@ -206,6 +199,11 @@ class Knowledge:
         return len(pretend_answers) - avg
 
 
+@dataclass
+class WordleKnowledge(KnowledgeBase):
+    WORD_LENGTH: ClassVar[int] = 5
+
+
 def get_result(*, answer: str, guess: str) -> WordleResult:
     """
     Given the answer the the guess string return a result
@@ -245,7 +243,7 @@ def get_result(*, answer: str, guess: str) -> WordleResult:
 
 
 class Game:
-    knowledge: Knowledge
+    knowledge: WordleKnowledge
 
     def __init__(self):
-        self.knowledge = Knowledge()
+        self.knowledge = WordleKnowledge()
