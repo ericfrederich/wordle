@@ -45,7 +45,7 @@ class Result:
                 pieces.append(ResultPiece(c, TileFeedback.wrong))
             elif c in "?+":
                 if previous not in ascii_lowercase or pieces[-1].feedback != TileFeedback.wrong:
-                    raise ValueError(f"Unexpected `?` found in {result_str}")
+                    raise ValueError(f"Unexpected {c!r} found in {result_str}")
                 if c == "?":
                     pieces[-1].feedback = TileFeedback.wrong_place
                 elif c == "+":
