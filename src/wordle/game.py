@@ -18,7 +18,7 @@ class TileFeedback(Enum):
 
 @dataclass
 class ResultPiece:
-    letter: str
+    character: str
     feedback: Optional[TileFeedback]
 
 
@@ -55,9 +55,9 @@ class Result:
     def __str__(self) -> str:
         return "".join(
             {
-                TileFeedback.correct: piece.letter.upper(),
-                TileFeedback.wrong: piece.letter,
-                TileFeedback.wrong_place: piece.letter + "?",
+                TileFeedback.correct: piece.character.upper(),
+                TileFeedback.wrong: piece.character,
+                TileFeedback.wrong_place: piece.character + "?",
             }[piece.feedback]
             for piece in self
         )
@@ -70,16 +70,18 @@ class Result:
         ret = []
         for i, piece in enumerate(self):
             if piece.feedback == TileFeedback.correct:
-                ret.append((i, piece.letter))
+                ret.append((i, piece.character))
         return ret
 
     @cached_property
     def letter_mins(self) -> Dict[str, int]:
         ret = {}
         # just once for each letter
-        for letter in set(piece.letter for piece in self):
+        for letter in set(piece.character for piece in self):
             # find all occurrences of this letter that are not wrong
-            min_required = sum(1 for piece in self if piece.letter == letter and piece.feedback != TileFeedback.wrong)
+            min_required = sum(
+                1 for piece in self if piece.character == letter and piece.feedback != TileFeedback.wrong
+            )
             if min_required:
                 ret[letter] = min_required
         return ret
@@ -88,14 +90,14 @@ class Result:
     def letter_maxes(self):
         ret = {}
         # just once for each wrong letter
-        for letter in set(piece.letter for piece in self if piece.feedback == TileFeedback.wrong):
+        for letter in set(piece.character for piece in self if piece.feedback == TileFeedback.wrong):
             # The maximum is equal to the minimum
             ret[letter] = self.letter_mins.get(letter, 0)
         return ret
 
     @cached_property
     def wrong_positions(self):
-        return {i: r.letter for i, r in enumerate(self) if r.feedback == TileFeedback.wrong_place}
+        return {i: r.character for i, r in enumerate(self) if r.feedback == TileFeedback.wrong_place}
 
 
 @dataclass
@@ -201,24 +203,24 @@ def get_result(*, answer: str, guess: str) -> Result:
     for a, g in zip(answer, guess):
         if g == a:
             # if it's correct, it's always correct, don't need to look any deeper
-            pieces.append(ResultPiece(letter=g, feedback=TileFeedback.correct))
+            pieces.append(ResultPiece(character=g, feedback=TileFeedback.correct))
         elif g not in answer:
             # if it's not in the word, it's always wrong, don't need to look any deeper
-            pieces.append(ResultPiece(letter=g, feedback=TileFeedback.wrong))
+            pieces.append(ResultPiece(character=g, feedback=TileFeedback.wrong))
         else:
-            pieces.append(ResultPiece(letter=g, feedback=None))
+            pieces.append(ResultPiece(character=g, feedback=None))
 
     # duplicates make things difficult, things can be marked as wrong or wrong position
     for piece in pieces:
         if piece.feedback is not None:
             continue
         # how many of this letter are in the answer
-        in_answer = answer.count(piece.letter)
+        in_answer = answer.count(piece.character)
         # how many of this letter in this particular guess are already marked as correct or wrong place
         already_marked = sum(
             1
             for p in pieces
-            if p.letter == piece.letter and p.feedback in (TileFeedback.correct, TileFeedback.wrong_place)
+            if p.character == piece.character and p.feedback in (TileFeedback.correct, TileFeedback.wrong_place)
         )
         if in_answer > already_marked:
             piece.feedback = TileFeedback.wrong_place

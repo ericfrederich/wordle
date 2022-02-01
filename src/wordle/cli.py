@@ -58,7 +58,7 @@ WRONG_PLACE_S = {"bg": "bright_yellow", "fg": "black", **COMMON_S}
 def render_result(result: Result):
     return "".join(
         click.style(
-            piece.letter.upper(),
+            piece.character.upper(),
             **{
                 TileFeedback.wrong: WRONG_S,
                 TileFeedback.wrong_place: WRONG_PLACE_S,
