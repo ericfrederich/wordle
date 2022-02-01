@@ -7,6 +7,7 @@ authors = ["Eric L Frederich <eric.frederich@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 click = "^8.0.3"
+more-itertools = "^8.12.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
