@@ -118,7 +118,7 @@ class KnowledgeBase:
     Everything known so far within a game
     """
 
-    WORD_LENGTH: ClassVar[int]
+    ANSWER_LENGTH: ClassVar[int]
     # minimum and maximum number of occurrences for each char (max of 0 means it's not in the solution)
     char_mins: Dict[str, int] = field(default_factory=dict)
     char_maxes: Dict[str, int] = field(default_factory=dict)
@@ -126,7 +126,7 @@ class KnowledgeBase:
     answer: List = field(default_factory=list)  # actually initialized in __post_init__
 
     def __post_init__(self):
-        for _ in range(self.WORD_LENGTH):
+        for _ in range(self.ANSWER_LENGTH):
             self.wrong_positions.append(set())
             self.answer.append(None)
 
@@ -206,7 +206,7 @@ class KnowledgeBase:
 
 @dataclass
 class WordleKnowledge(KnowledgeBase):
-    WORD_LENGTH: ClassVar[int] = 5
+    ANSWER_LENGTH: ClassVar[int] = 5
 
 
 def get_result(*, answer: str, guess: str) -> WordleResult:
