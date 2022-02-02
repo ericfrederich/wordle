@@ -13,21 +13,11 @@ data_path = Path(__file__).absolute().parent / "nerdle_equations.dat"
 ANSWER_SIZE = 8
 
 
-__all__ = ["ALL_EQUATIONS"]
-
-
 @lru_cache()
-def _all_equations():
-    print("running the line getter")
+def get_all_equations():
+    # print("running the line getter")
     with data_path.open("rt") as f:
         return f.read().splitlines()
-
-
-# module-level getattr, see PEP 562: https://www.python.org/dev/peps/pep-0562
-def __getattr__(name):
-    if name == "ALL_EQUATIONS":
-        return _all_equations()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def generate(out: TextIO):

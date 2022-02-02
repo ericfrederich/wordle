@@ -6,7 +6,7 @@ from functools import cached_property
 from string import ascii_lowercase, digits
 from typing import ClassVar, Dict, List, Optional, Set, Type, Union
 
-from wordle.nerdle_equations import ALL_EQUATIONS
+from wordle.nerdle_equations import get_all_equations
 from wordle.wordle_words import SECRET_WORDS
 
 
@@ -35,7 +35,7 @@ class ResultBase:
     def from_str(cls, result_str: str):
         """
         Load a result from a string representation.
-        * Character followed by +       - correct char in correct position
+        * Character followed by @       - correct char in correct position
         * Character followed by ?       - char is in solution but at another position
         * Character followed by nothing - wrong char (not in solution)
         """
@@ -44,12 +44,12 @@ class ResultBase:
         for c in result_str:
             if c in cls.allowed_characters:
                 pieces.append(ResultPiece(c, TileFeedback.wrong))
-            elif c in "?+":
+            elif c in "?@":
                 if previous not in cls.allowed_characters or pieces[-1].feedback != TileFeedback.wrong:
                     raise ValueError(f"Unexpected {c!r} found in {result_str}")
                 if c == "?":
                     pieces[-1].feedback = TileFeedback.wrong_place
-                elif c == "+":
+                elif c == "@":
                     pieces[-1].feedback = TileFeedback.correct
                 else:
                     raise ValueError("Should never get here")
@@ -58,10 +58,48 @@ class ResultBase:
             previous = c
         return cls(pieces)
 
+    @classmethod
+    def get(cls, *, answer: str, guess: str) -> "ResultBase":
+        """
+        Given the answer the the guess string return a result
+        """
+
+        pieces: List[ResultPiece] = []
+
+        # Mark the obvious correct and wrong
+        for a, g in zip(answer, guess):
+            if g == a:
+                # if it's correct, it's always correct, don't need to look any deeper
+                pieces.append(ResultPiece(character=g, feedback=TileFeedback.correct))
+            elif g not in answer:
+                # if it's not in the word, it's always wrong, don't need to look any deeper
+                pieces.append(ResultPiece(character=g, feedback=TileFeedback.wrong))
+            else:
+                pieces.append(ResultPiece(character=g, feedback=None))
+
+        # duplicates make things difficult, things can be marked as wrong or wrong position
+        for piece in pieces:
+            if piece.feedback is not None:
+                continue
+            # how many of this letter are in the answer
+            in_answer = answer.count(piece.character)
+            # how many of this letter in this particular guess are already marked as correct or wrong place
+            already_marked = sum(
+                1
+                for p in pieces
+                if p.character == piece.character and p.feedback in (TileFeedback.correct, TileFeedback.wrong_place)
+            )
+            if in_answer > already_marked:
+                piece.feedback = TileFeedback.wrong_place
+            else:
+                piece.feedback = TileFeedback.wrong
+
+        return WordleResult(pieces)
+
     def __str__(self) -> str:
         return "".join(
             {
-                TileFeedback.correct: piece.character + "+",
+                TileFeedback.correct: piece.character + "@",
                 TileFeedback.wrong: piece.character,
                 TileFeedback.wrong_place: piece.character + "?",
             }[piece.feedback]
@@ -164,10 +202,8 @@ class KnowledgeBase(ABC):
         return True
 
     @abstractmethod
-    def valid_solutions(self, solution_list: List[str] = SECRET_WORDS) -> List[str]:
-        # Should we limit this to list of secret words or also include anything
-        # that wordle allows as a guess
-        return [w for w in solution_list if self.is_valid_solution(w)]
+    def valid_solutions(self, solution_list: List[str] = None) -> List[str]:
+        pass
 
     def add_result(self, result: ResultBase):
         # merge the correct letters
@@ -202,7 +238,7 @@ class KnowledgeBase(ABC):
             pretend_answers = self.valid_solutions()
         for pretend_answer in pretend_answers:
             k = self.copy()
-            k.add_result(get_result(answer=pretend_answer, guess=guess))
+            k.add_result(self.result_cls.get(answer=pretend_answer, guess=guess))
             total += len(k.valid_solutions())
         avg = total / len(pretend_answers)
         return len(pretend_answers) - avg
@@ -211,6 +247,7 @@ class KnowledgeBase(ABC):
 @dataclass
 class WordleKnowledge(KnowledgeBase):
     ANSWER_LENGTH: ClassVar[int] = 5
+    result_cls = WordleResult
 
     def valid_solutions(self, solution_list: List[str] = SECRET_WORDS) -> List[str]:
         # Should we limit this to list of secret words or also include anything
@@ -221,53 +258,9 @@ class WordleKnowledge(KnowledgeBase):
 @dataclass
 class NerdleKnowledge(KnowledgeBase):
     ANSWER_LENGTH: ClassVar[int] = 8
+    result_cls = NerdleResult
 
-    def valid_solutions(self, solution_list: List[str] = ALL_EQUATIONS) -> List[str]:
-        # Should we limit this to list of secret words or also include anything
-        # that wordle allows as a guess
+    def valid_solutions(self, solution_list: List[str] = None) -> List[str]:
+        if solution_list is None:
+            solution_list = get_all_equations()
         return [w for w in solution_list if self.is_valid_solution(w)]
-
-
-def get_result(*, answer: str, guess: str) -> WordleResult:
-    """
-    Given the answer the the guess string return a result
-    """
-
-    pieces: List[ResultPiece] = []
-
-    # Mark the obvious correct and wrong
-    for a, g in zip(answer, guess):
-        if g == a:
-            # if it's correct, it's always correct, don't need to look any deeper
-            pieces.append(ResultPiece(character=g, feedback=TileFeedback.correct))
-        elif g not in answer:
-            # if it's not in the word, it's always wrong, don't need to look any deeper
-            pieces.append(ResultPiece(character=g, feedback=TileFeedback.wrong))
-        else:
-            pieces.append(ResultPiece(character=g, feedback=None))
-
-    # duplicates make things difficult, things can be marked as wrong or wrong position
-    for piece in pieces:
-        if piece.feedback is not None:
-            continue
-        # how many of this letter are in the answer
-        in_answer = answer.count(piece.character)
-        # how many of this letter in this particular guess are already marked as correct or wrong place
-        already_marked = sum(
-            1
-            for p in pieces
-            if p.character == piece.character and p.feedback in (TileFeedback.correct, TileFeedback.wrong_place)
-        )
-        if in_answer > already_marked:
-            piece.feedback = TileFeedback.wrong_place
-        else:
-            piece.feedback = TileFeedback.wrong
-
-    return WordleResult(pieces)
-
-
-class Game:
-    knowledge: WordleKnowledge
-
-    def __init__(self):
-        self.knowledge = WordleKnowledge()

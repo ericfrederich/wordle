@@ -3,11 +3,19 @@ import io
 import os
 from datetime import datetime
 from string import ascii_lowercase
-from typing import List, Tuple
+from typing import List, Tuple, Type
 
 import click
 
-from wordle.game import TileFeedback, WordleKnowledge, WordleResult, get_result
+from wordle.game import (
+    NerdleKnowledge,
+    NerdleResult,
+    ResultBase,
+    TileFeedback,
+    WordleKnowledge,
+    WordleResult,
+)
+from wordle.nerdle_equations import get_all_equations
 from wordle.wordle_words import (
     ALLOWED_GUESSES,
     SECRET_WORDS,
@@ -18,7 +26,15 @@ from wordle.wordle_words import (
 
 @click.group()
 @click.pass_context
-def cli_main(ctx: click.Context):
+def wordle_cli(ctx: click.Context):
+    # force color output in Pycharm
+    if "PYCHARM_HOSTED" in os.environ:
+        ctx.color = True
+
+
+@click.group()
+@click.pass_context
+def nerdle_cli(ctx: click.Context):
     # force color output in Pycharm
     if "PYCHARM_HOSTED" in os.environ:
         ctx.color = True
@@ -27,14 +43,17 @@ def cli_main(ctx: click.Context):
 class ResultType(click.ParamType):
     name = "result"
 
+    def __init__(self, result_cls: Type[ResultBase]):
+        self.result_cls = result_cls
+
     def convert(self, value, param, ctx):
-        if isinstance(value, WordleResult):
+        if isinstance(value, self.result_cls):
             # WHEN DOES THIS EVER HAPPEN?
             click.secho("WHEN DOES THIS EVER HAPPEN?", fg="red", bold=True)
             return value
 
         elif isinstance(value, str):
-            return WordleResult.from_str(value)
+            return self.result_cls.from_str(value)
         else:
             click.secho("?" * 80, fg="red", bold=True)
 
@@ -55,7 +74,7 @@ WRONG_S = {"bg": "bright_black", "fg": "bright_white", **COMMON_S}
 WRONG_PLACE_S = {"bg": "bright_yellow", "fg": "black", **COMMON_S}
 
 
-def render_result(result: WordleResult):
+def render_result(result: ResultBase):
     return "".join(
         click.style(
             piece.character.upper(),
@@ -89,9 +108,9 @@ def render_keyboard(k: WordleKnowledge):
         click.echo()
 
 
-@cli_main.command("valid-solutions")
+@wordle_cli.command("valid-solutions")
 @click.option("--quiet", "-q", is_flag=True)
-@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType())
+@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType(WordleResult))
 @click.pass_context
 def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleResult]):
     """
@@ -107,16 +126,16 @@ def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleRes
         click.echo(p)
 
 
-@cli_main.command("best-guess")
+@wordle_cli.command("best-guess")
 @click.option("--hard-mode", is_flag=True, default=False)
 @click.option("--only-secret-words", is_flag=True)
 @click.option("--guess", "-g", "guess_cli_strs", multiple=True, help="Use only these guesses from CLI")
 @click.option("--threads", "n_threads", type=click.types.INT, default=os.cpu_count())
 @click.option("--out", "out_file", type=click.types.File("w"))
 @click.option("--quiet", "-q", is_flag=True)
-@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType())
+@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType(WordleResult))
 @click.pass_context
-def best_guess_cmd(
+def best_guess_wordle_cmd(
     ctx: click.Context,
     hard_mode: bool,
     only_secret_words: bool,
@@ -189,7 +208,77 @@ def best_guess_cmd(
     return [word for reduction, word in data]
 
 
-@cli_main.command("get-result")
+@nerdle_cli.command("best-guess")
+@click.option("--hard-mode", is_flag=True, default=False)
+@click.option("--guess", "-g", "guess_cli_strs", multiple=True, help="Use only these guesses from CLI")
+@click.option("--threads", "n_threads", type=click.types.INT, default=os.cpu_count())
+@click.option("--out", "out_file", type=click.types.File("w"))
+@click.option("--quiet", "-q", is_flag=True)
+@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType(NerdleResult))
+@click.pass_context
+def best_guess_nerdle_cmd(
+    ctx: click.Context,
+    hard_mode: bool,
+    guess_cli_strs: Tuple[str],
+    n_threads: int,
+    out_file: io.BytesIO,
+    quiet: bool,
+    results: List[WordleResult],
+    internal_call: bool = False,
+    pretend_answers: List[str] = None,
+):
+    """
+    Find the guess word that would reduce the set of legal words the most.
+    This is CPU intensive and by default uses all cores of the machine.
+    """
+    if not quiet:
+        click.secho(f"{ctx.command.name}(", fg="white", bold=True)
+        for r in results:
+            click.echo("  " + render_result(r) + ",")
+        click.secho(")", fg="white", bold=True)
+    knowledge = NerdleKnowledge.from_results(*results)
+    data = []
+    valid_before = knowledge.valid_solutions()
+    if hard_mode:
+        guesses = knowledge.valid_solutions()
+    else:
+        guesses = get_all_equations()
+    if guess_cli_strs:
+        guesses = sorted(guess_cli_strs)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=n_threads) as executor:
+        future_to_guess = {
+            executor.submit(knowledge.guess_reduction, guess, pretend_answers=pretend_answers): guess
+            for guess in guesses
+        }
+        with click.progressbar(
+            concurrent.futures.as_completed(future_to_guess),
+            item_show_func=lambda f: future_to_guess.get(f, ""),
+            show_pos=True,
+            length=len(guesses),
+        ) as pb:
+            for future in pb:
+                guess = future_to_guess[future]
+                try:
+                    reduction = future.result()
+                except Exception as exc:
+                    print("%r generated an exception: %s" % (guess, exc))
+                else:
+                    data.append((reduction, guess))
+
+    data.sort()
+    if not internal_call:
+        for reduction, guess in data:
+            click.echo(f"{guess} reduces average of {reduction} down to average of {len(valid_before) - reduction}")
+            if out_file:
+                print(
+                    f"{guess} reduces average of {reduction} down to average of {len(valid_before) - reduction}",
+                    file=out_file,
+                )
+
+    return [word for reduction, word in data]
+
+
+@wordle_cli.command("get-result")
 @click.option("--as-string", is_flag=True)
 @click.argument("answer", type=click.types.STRING)
 @click.argument("guess", type=click.types.STRING)
@@ -199,14 +288,14 @@ def get_result_cmd(as_string: bool, answer: str, guess: str):
     """
     if not (answer.islower() and guess.islower()):
         raise click.BadArgumentUsage("Need lower case")
-    result = get_result(answer=answer, guess=guess)
+    result = WordleResult.get(answer=answer, guess=guess)
     if as_string:
         click.echo(str(result))
     else:
         click.echo(render_result(result))
 
 
-@cli_main.command("answer")
+@wordle_cli.command("answer")
 @click.option("--quiet", "-q", is_flag=True, help="Don't show date")
 @click.argument("dt", metavar="date", type=click.DateTime(), default=datetime.now())
 def answer_cmd(quiet: bool, dt: datetime):
@@ -221,7 +310,7 @@ def answer_cmd(quiet: bool, dt: datetime):
         click.echo(f"{d}: " + click.style(answer, **CORRECT_S))
 
 
-@cli_main.command("answers")
+@wordle_cli.command("answers")
 @click.option("--quiet", "-q", is_flag=True, help="Don't show date")
 def answers_cmd(quiet: bool):
     """
@@ -235,7 +324,7 @@ def answers_cmd(quiet: bool):
             click.echo(f"{d}: " + click.style(answer, **CORRECT_S))
 
 
-@cli_main.command("date")
+@wordle_cli.command("date")
 @click.argument("word", type=click.STRING)
 def date_cmd(word: str):
     """
@@ -248,7 +337,7 @@ def date_cmd(word: str):
     click.secho(f"{d}: {word}")
 
 
-@cli_main.command("bot")
+@wordle_cli.command("bot")
 @click.option("--hard-mode", is_flag=True, default=False)
 @click.option("--only-secret-words", is_flag=True)
 @click.option("--threads", "n_threads", type=click.types.INT, default=os.cpu_count())
@@ -270,7 +359,7 @@ def bot_cmd(
     knowledge = WordleKnowledge()
     results = []
     for guess in initial_guesses:
-        result = get_result(answer=answer, guess=guess)
+        result = WordleResult.get(answer=answer, guess=guess)
         print(f"{result!r}")
         print(f"{str(result)=}")
         results.append(result)
@@ -285,7 +374,7 @@ def bot_cmd(
     while len(valid_solutions := knowledge.valid_solutions()) > 1:
         click.secho(f"{len(valid_solutions)} valid solutions ({valid_solutions})")
         guesses = ctx.invoke(
-            best_guess_cmd,
+            best_guess_wordle_cmd,
             hard_mode=hard_mode,
             only_secret_words=only_secret_words,
             n_threads=n_threads,
@@ -299,16 +388,16 @@ def bot_cmd(
             guess = guesses[-1]
         else:
             guess = guesses[0]
-        result = get_result(answer=answer, guess=guess)
+        result = WordleResult.get(answer=answer, guess=guess)
         click.echo(f"Got result {render_result(result)}")
         results.append(result)
         knowledge.add_result(result)
 
     assert knowledge.valid_solutions() == [answer]
-    click.secho(f"Answer {render_result(get_result(answer=answer, guess=answer))}")
+    click.secho(f"Answer {render_result(WordleResult.get(answer=answer, guess=answer))}")
 
 
-@cli_main.command("play")
+@wordle_cli.command("play")
 @click.option("--hard-mode", is_flag=True, default=False)
 @click.option("--threads", "n_threads", type=click.types.INT, default=os.cpu_count())
 @click.argument("dt", metavar="date", type=click.DateTime(), default=datetime.now())
@@ -342,7 +431,7 @@ def play(ctx: click.Context, dt: datetime, hard_mode: bool, n_threads: int = os.
                 ):
                     continue
                 guesses = ctx.invoke(
-                    best_guess_cmd,
+                    best_guess_wordle_cmd,
                     hard_mode=hard_mode,
                     n_threads=n_threads,
                     quiet=True,
@@ -361,7 +450,7 @@ def play(ctx: click.Context, dt: datetime, hard_mode: bool, n_threads: int = os.
         if hard_mode and not knowledge.is_valid_solution(guess):
             click.secho(f"{guess} is not a valid in hard mode", fg="red", bold=True)
             continue
-        result = get_result(answer=answer, guess=guess)
+        result = WordleResult.get(answer=answer, guess=guess)
         # click.secho(render_result(result))
         knowledge.add_result(result)
         results.append(result)
