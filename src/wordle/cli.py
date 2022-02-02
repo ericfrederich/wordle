@@ -103,7 +103,7 @@ def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleRes
             click.echo("  " + render_result(r) + ",")
         click.secho(")", fg="white", bold=True)
     k = WordleKnowledge.from_results(*results)
-    for p in sorted(k.valid_solutions(word_list=SECRET_WORDS)):
+    for p in sorted(k.valid_solutions(solution_list=SECRET_WORDS)):
         click.echo(p)
 
 
@@ -142,9 +142,9 @@ def best_guess_cmd(
     valid_before = knowledge.valid_solutions()
     if hard_mode:
         if only_secret_words:
-            guesses = sorted(knowledge.valid_solutions(word_list=SECRET_WORDS))
+            guesses = sorted(knowledge.valid_solutions(solution_list=SECRET_WORDS))
         else:
-            guesses = sorted(knowledge.valid_solutions(word_list=SECRET_WORDS + ALLOWED_GUESSES))
+            guesses = sorted(knowledge.valid_solutions(solution_list=SECRET_WORDS + ALLOWED_GUESSES))
     else:
         if only_secret_words:
             guesses = sorted(SECRET_WORDS)

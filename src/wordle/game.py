@@ -1,10 +1,12 @@
 import copy
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
 from string import ascii_lowercase, digits
-from typing import ClassVar, Dict, List, Optional, Set, Union
+from typing import ClassVar, Dict, List, Optional, Set, Type, Union
 
+from wordle.nerdle_equations import ALL_EQUATIONS
 from wordle.wordle_words import SECRET_WORDS
 
 
@@ -113,12 +115,13 @@ class NerdleResult(ResultBase):
 
 
 @dataclass
-class KnowledgeBase:
+class KnowledgeBase(ABC):
     """
     Everything known so far within a game
     """
 
     ANSWER_LENGTH: ClassVar[int]
+    result_cls: ClassVar[Type[ResultBase]]
     # minimum and maximum number of occurrences for each char (max of 0 means it's not in the solution)
     char_mins: Dict[str, int] = field(default_factory=dict)
     char_maxes: Dict[str, int] = field(default_factory=dict)
@@ -134,11 +137,11 @@ class KnowledgeBase:
         return copy.deepcopy(self)
 
     @classmethod
-    def from_results(cls, *results: Union[WordleResult, str]):
+    def from_results(cls, *results: Union[ResultBase, str]):
         ret = cls()
         for r in results:
             if isinstance(r, str):
-                r = WordleResult.from_str(r)
+                r = cls.result_cls.from_str(r)
             ret.add_result(r)
         return ret
 
@@ -160,12 +163,13 @@ class KnowledgeBase:
                 return False
         return True
 
-    def valid_solutions(self, word_list: List[str] = SECRET_WORDS) -> List[str]:
+    @abstractmethod
+    def valid_solutions(self, solution_list: List[str] = SECRET_WORDS) -> List[str]:
         # Should we limit this to list of secret words or also include anything
         # that wordle allows as a guess
-        return [w for w in word_list if self.is_valid_solution(w)]
+        return [w for w in solution_list if self.is_valid_solution(w)]
 
-    def add_result(self, result: WordleResult):
+    def add_result(self, result: ResultBase):
         # merge the correct letters
         for i, l in result.correct_chars:
             if self.answer[i]:
@@ -207,6 +211,21 @@ class KnowledgeBase:
 @dataclass
 class WordleKnowledge(KnowledgeBase):
     ANSWER_LENGTH: ClassVar[int] = 5
+
+    def valid_solutions(self, solution_list: List[str] = SECRET_WORDS) -> List[str]:
+        # Should we limit this to list of secret words or also include anything
+        # that wordle allows as a guess
+        return [w for w in solution_list if self.is_valid_solution(w)]
+
+
+@dataclass
+class NerdleKnowledge(KnowledgeBase):
+    ANSWER_LENGTH: ClassVar[int] = 8
+
+    def valid_solutions(self, solution_list: List[str] = ALL_EQUATIONS) -> List[str]:
+        # Should we limit this to list of secret words or also include anything
+        # that wordle allows as a guess
+        return [w for w in solution_list if self.is_valid_solution(w)]
 
 
 def get_result(*, answer: str, guess: str) -> WordleResult:
