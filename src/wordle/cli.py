@@ -112,7 +112,7 @@ def render_keyboard(k: WordleKnowledge):
 @click.option("--quiet", "-q", is_flag=True)
 @click.argument("results", metavar="result str ...", nargs=-1, type=ResultType(WordleResult))
 @click.pass_context
-def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleResult]):
+def valid_solutions_wordle_cmd(ctx: click.Context, quiet: bool, results: List[WordleResult]):
     """
     Show valid solutions given the supplied previous results/feedback
     """
@@ -123,6 +123,24 @@ def valid_solutions_cmd(ctx: click.Context, quiet: bool, results: List[WordleRes
         click.secho(")", fg="white", bold=True)
     k = WordleKnowledge.from_results(*results)
     for p in sorted(k.valid_solutions(solution_list=SECRET_WORDS)):
+        click.echo(p)
+
+
+@nerdle_cli.command("valid-solutions")
+@click.option("--quiet", "-q", is_flag=True)
+@click.argument("results", metavar="result str ...", nargs=-1, type=ResultType(NerdleResult))
+@click.pass_context
+def valid_solutions_nerdle_cmd(ctx: click.Context, quiet: bool, results: List[NerdleResult]):
+    """
+    Show valid solutions given the supplied previous results/feedback
+    """
+    if not quiet:
+        click.secho(f"{ctx.command.name}(", fg="white", bold=True)
+        for r in results:
+            click.echo("  " + render_result(r) + ",")
+        click.secho(")", fg="white", bold=True)
+    k = NerdleKnowledge.from_results(*results)
+    for p in sorted(k.valid_solutions()):
         click.echo(p)
 
 

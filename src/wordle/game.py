@@ -206,6 +206,10 @@ class KnowledgeBase(ABC):
         pass
 
     def add_result(self, result: ResultBase):
+        # TODO: turn off assertions for faster performance
+        for a, p in zip(self.answer, result):
+            if a == p.character:
+                assert p.feedback == TileFeedback.correct
         # merge the correct letters
         for i, l in result.correct_chars:
             if self.answer[i]:
