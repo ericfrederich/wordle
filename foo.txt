@@ -1,0 +1,3 @@
+[something]
+aws_access_key_id = ASIA1QA2WS3ED4RF5TG6
+aws_secret_access_key = 7hPyNq97YtuasnnYq7wBnVA8yB2Nr1kaUlOofMRs
