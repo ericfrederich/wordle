@@ -28,24 +28,10 @@ class ResultType(click.ParamType):
     name = "result"
 
     def convert(self, value, param, ctx):
-        if isinstance(value, Result):
-            # WHEN DOES THIS EVER HAPPEN?
-            click.secho("WHEN DOES THIS EVER HAPPEN?", fg="red", bold=True)
-            return value
-
-        elif isinstance(value, str):
+        if isinstance(value, str):
             return Result.from_str(value)
         else:
-            click.secho("?" * 80, fg="red", bold=True)
-
-        try:
-            if value[:2].lower() == "0x":
-                return int(value[2:], 16)
-            elif value[:1] == "0":
-                return int(value, 8)
-            return int(value, 10)
-        except ValueError:
-            self.fail(f"{value!r} is not a valid integer", param, ctx)
+            raise ValueError(f"??? {value!r} {type(value)=}")
 
 
 # Styles
@@ -144,12 +130,12 @@ def best_guess_cmd(
         if only_secret_words:
             guesses = sorted(knowledge.valid_solutions(word_list=SECRET_WORDS))
         else:
-            guesses = sorted(knowledge.valid_solutions(word_list=SECRET_WORDS + ALLOWED_GUESSES))
+            guesses = sorted(knowledge.valid_solutions(word_list=set(SECRET_WORDS + ALLOWED_GUESSES)))
     else:
         if only_secret_words:
             guesses = sorted(SECRET_WORDS)
         else:
-            guesses = sorted(SECRET_WORDS + ALLOWED_GUESSES)
+            guesses = sorted(set(SECRET_WORDS + ALLOWED_GUESSES))
     if guess_cli_strs:
         guesses = sorted(guess_cli_strs)
     with concurrent.futures.ProcessPoolExecutor(max_workers=n_threads) as executor:
